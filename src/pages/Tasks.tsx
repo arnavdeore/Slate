@@ -11,9 +11,18 @@ import ViewTaskModal from '../components/ViewTaskModal'
 import { categoryNames } from '../data/dashboard'
 import type { CategoryKey } from '../data/dashboard'
 import { statusNames } from '../data/tasks'
-import type { NewEodUpdate, NewTask, TaskEdits, TaskStatus } from '../data/tasks'
-import { todayIso } from '../lib/dates'
-import { deleteTask, errorMessage, insertTask, saveEodUpdate, setTaskStatus, sortTasks, updateTask } from '../lib/tasksApi'
+import type { NewEodUpdate, NewTask, Task, TaskEdits, TaskStatus } from '../data/tasks'
+import { formatIso, todayIso } from '../lib/dates'
+import {
+  deleteTask,
+  errorMessage,
+  insertTask,
+  repeatTask,
+  saveEodUpdate,
+  setTaskStatus,
+  sortTasks,
+  updateTask,
+} from '../lib/tasksApi'
 import { dueInWeekCount, hoursLoggedOn, openTasks, overdueCount, tasksLoggedOn } from '../lib/taskStats'
 import { useTasksData } from '../lib/tasksDataContext'
 
@@ -94,6 +103,8 @@ export default function Tasks() {
       estimateHours: form.estimateHours,
       notes: form.notes,
       status: form.status,
+      repeat: form.repeat,
+      repeatDays: form.repeatDays,
     }
     // A finished task keeps its original finish date; one that has just been set to Done gets today; any other status clears it.
     const completedOn = edits.status !== 'done' ? '' : editing.status === 'done' ? editing.completedOn : today
@@ -102,7 +113,12 @@ export default function Tasks() {
       setTasks((all) => sortTasks(all.map((task) => (task.id === editing.id ? { ...task, ...edits, completedOn } : task))))
       setSelectedId(editing.id)
       setEditId('')
-      setToast(`Saved changes to "${edits.title}".`)
+      // Setting a repeating task to Done here starts the next copy too, exactly as the card button does.
+      const repeated =
+        edits.status === 'done' && editing.status !== 'done'
+          ? await addNextCopy({ ...editing, ...edits, completedOn })
+          : ''
+      setToast(`Saved changes to "${edits.title}".${repeated}`)
       return null
     } catch (error) {
       return errorMessage(error)
@@ -129,6 +145,20 @@ export default function Tasks() {
     setEodOpen(true)
   }
 
+  // A repeating task that has just been finished gets its next copy at once (see src/lib/repeat.ts). Only one copy is
+  // ever open. Returns a sentence to add to the toast, or '' when the task does not repeat.
+  async function addNextCopy(task: Task): Promise<string> {
+    if (!task.repeat) return ''
+    try {
+      const next = await repeatTask(task, today)
+      if (!next) return ''
+      setTasks((all) => sortTasks([next, ...all]))
+      return ` Next one is due ${formatIso(next.fixed)}.`
+    } catch {
+      return ' The next repeat could not be created, so add it by hand.'
+    }
+  }
+
   // Saving an update logs the entry, then sets the status chosen and copies the text to the card note (Done stamps today's
   // date). It reloads afterwards so hours and statuses come from the database. Resolves to null, or a message for the pop-up.
   async function saveEod(update: NewEodUpdate): Promise<string | null> {
@@ -136,13 +166,15 @@ export default function Tasks() {
     if (!task) return 'That task could not be found. Reload the page.'
     try {
       const result = await saveEodUpdate(update, today)
+      // Create the next copy before reloading, so the reload brings it back with everything else.
+      const repeated = result === 'saved' && update.statusAfter === 'done' && task.status !== 'done' ? await addNextCopy(task) : ''
       const refreshFailed = await reload(true)
       if (refreshFailed) setToast(refreshFailed)
       setSelectedId(task.id)
       setEodOpen(false)
       setToast(
         result === 'saved'
-          ? `EOD update saved for "${task.title}".`
+          ? `EOD update saved for "${task.title}".${repeated}`
           : 'Update logged, but the task status could not be changed. Set it again from the card.',
       )
       return null
@@ -153,12 +185,17 @@ export default function Tasks() {
 
   // The card moves at once and the save runs behind it. If the save fails, say so and reload the true state.
   async function moveTask(id: string, to: TaskStatus) {
+    const before = tasks.find((task) => task.id === id)
     setTasks((all) =>
       sortTasks(all.map((task) => (task.id === id ? { ...task, status: to, completedOn: to === 'done' ? today : '' } : task))),
     )
     setSelectedId(id)
     try {
       await setTaskStatus(id, to, today)
+      if (to === 'done' && before && before.status !== 'done') {
+        const repeated = await addNextCopy(before)
+        if (repeated) setToast(`Finished "${before.title}".${repeated}`)
+      }
     } catch (error) {
       setToast(errorMessage(error))
       void reload(true)
@@ -234,7 +271,8 @@ export default function Tasks() {
                 <button
                   key={item.key}
                   type="button"
-                  className={`segb${filter === item.key ? ' on' : ''}`}
+                  // "All" means no filter, so it is never highlighted; nothing lit up means nothing is filtered out.
+                  className={`segb${filter === item.key && item.key !== 'all' ? ' on' : ''}`}
                   aria-pressed={filter === item.key}
                   onClick={() => setFilter(item.key)}
                 >

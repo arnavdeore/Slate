@@ -1,5 +1,7 @@
 import type { CategoryKey, Mood } from '../data/dashboard'
-import type { EodUpdate, NewEodUpdate, NewTask, Priority, Task, TaskEdits, TaskStatus } from '../data/tasks'
+import type { EodUpdate, NewEodUpdate, NewTask, Priority, RepeatRule, Task, TaskEdits, TaskStatus } from '../data/tasks'
+import { daysBetween } from './dates'
+import { addDays, nextDueAfter } from './repeat'
 import { supabase } from './supabase'
 
 /*
@@ -21,6 +23,8 @@ type TaskRow = {
   estimate_hours: number | string
   completed_on: string | null
   notes: string
+  repeat_rule: RepeatRule | null
+  repeat_days: number[] | null
 }
 
 type EodRow = {
@@ -66,6 +70,16 @@ function toTask(row: TaskRow, loggedHours: number): Task {
     loggedHours: Math.round(loggedHours * 100) / 100,
     completedOn: row.completed_on ?? '',
     notes: row.notes,
+    repeat: row.repeat_rule ?? '',
+    repeatDays: row.repeat_days ?? [],
+  }
+}
+
+/** The two repeat columns as the database wants them: a rule of '' is NULL, and only 'custom' stores weekdays. */
+function repeatColumns(task: { repeat: RepeatRule | ''; repeatDays: number[] }) {
+  return {
+    repeat_rule: task.repeat || null,
+    repeat_days: task.repeat === 'custom' && task.repeatDays.length > 0 ? [...task.repeatDays].sort() : null,
   }
 }
 
@@ -129,6 +143,7 @@ export async function insertTask(newTask: NewTask, today: string): Promise<Task>
       estimate_hours: newTask.estimateHours,
       completed_on: newTask.status === 'done' ? today : null,
       notes: newTask.notes,
+      ...repeatColumns(newTask),
     })
     .select()
     .single()
@@ -153,11 +168,38 @@ export async function updateTask(id: string, edits: TaskEdits, completedOn: stri
       fixed_date: edits.fixed,
       estimate_hours: edits.estimateHours,
       notes: edits.notes,
+      ...repeatColumns(edits),
     })
     .eq('id', id)
     .select('id')
   if (error) throw failure(error)
   if (!data || data.length === 0) throw new Error('That task could not be found. Reload the page.')
+}
+
+/**
+ * Creates the next copy of a repeating task, due after `finishedOn` so a late finish never makes an overdue copy.
+ * The new copy starts at To do with no hours and no EOD updates; the gap between the tentative and fixed dates is kept.
+ * Resolves to null when the task does not repeat (or the rule cannot give a date), so the caller can always call it.
+ */
+export async function repeatTask(task: Task, finishedOn: string): Promise<Task | null> {
+  if (!task.repeat) return null
+  const fixed = nextDueAfter(task.fixed, task.repeat, task.repeatDays, finishedOn)
+  if (!fixed) return null
+  // Keep the tentative date the same number of days before the fixed date as it was on this copy.
+  const gap = task.tentative ? daysBetween(task.tentative, task.fixed) : 0
+  const next: NewTask = {
+    title: task.title,
+    category: task.category,
+    priority: task.priority,
+    tentative: task.tentative ? addDays(fixed, -gap) : '',
+    fixed,
+    status: 'todo',
+    estimateHours: task.estimateHours,
+    notes: task.notes,
+    repeat: task.repeat,
+    repeatDays: task.repeatDays,
+  }
+  return insertTask(next, finishedOn)
 }
 
 /** Deletes a task. Its EOD updates are deleted with it (the database does this, see supabase/schema.sql). */

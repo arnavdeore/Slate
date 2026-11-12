@@ -57,8 +57,8 @@ create table public.eod_updates (
 -- One row per user: name shown in the app and the on-time target used by the Performance page.
 create table public.user_settings (
   user_id              uuid primary key default auth.uid() references auth.users (id) on delete cascade,
-  display_name         text not null default 'Arnav' check (char_length(btrim(display_name)) between 1 and 60),
-  job_title            text not null default 'Data analyst' check (char_length(job_title) <= 80),
+  display_name         text not null default 'User' check (char_length(btrim(display_name)) between 1 and 60),
+  job_title            text not null default '' check (char_length(job_title) <= 80),
   fixed_target_percent integer not null default 90 check (fixed_target_percent between 1 and 100),
   created_at           timestamptz not null default now(),
   updated_at           timestamptz not null default now()
@@ -107,7 +107,20 @@ security definer
 set search_path = ''
 as $$
 begin
-  insert into public.user_settings (user_id) values (new.id);
+  -- A new user starts with a name taken from their email (priya.sharma@x.com becomes "Priya") and a blank job title;
+  -- they change both on the Settings page. A "full_name" set when the user is created is used instead.
+  insert into public.user_settings (user_id, display_name)
+  values (
+    new.id,
+    left(
+      coalesce(
+        nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''),
+        nullif(initcap(split_part(split_part(coalesce(new.email, ''), '@', 1), '.', 1)), ''),
+        'User'
+      ),
+      60
+    )
+  );
   return new;
 end;
 $$;

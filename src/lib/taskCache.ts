@@ -1,4 +1,5 @@
 import type { EodUpdate, Task } from '../data/tasks'
+import type { Profile } from './profileApi'
 
 /*
  * A copy of the user's last-loaded tasks and EOD updates, kept in this browser (localStorage) so the pages can show something at
@@ -57,11 +58,37 @@ export function writeCache(userId: string, data: CachedData): void {
   }
 }
 
-/** Removes every saved copy (all users). Called on sign-out. */
+// The signed-in person's name and job title, kept the same way (per user, wiped on sign-out) so the top bar shows the name at once.
+const PROFILE_PREFIX = 'slate:profile:'
+
+/** The saved name and job title for this user, or null when there is none (or it cannot be trusted). */
+export function readProfileCache(userId: string): Profile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_PREFIX + userId)
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const { name, title } = parsed as { name?: unknown; title?: unknown }
+    if (typeof name !== 'string' || typeof title !== 'string' || !name.trim()) return null
+    return { name, title }
+  } catch {
+    return null
+  }
+}
+
+export function writeProfileCache(userId: string, profile: Profile): void {
+  try {
+    localStorage.setItem(PROFILE_PREFIX + userId, JSON.stringify(profile))
+  } catch {
+    // Storage full or blocked: the name simply loads without a saved copy next time.
+  }
+}
+
+/** Removes every saved copy (all users): the tasks and the profile. Called on sign-out. */
 export function clearCache(): void {
   try {
     for (const key of Object.keys(localStorage)) {
-      if (key.startsWith(PREFIX)) localStorage.removeItem(key)
+      if (key.startsWith(PREFIX) || key.startsWith(PROFILE_PREFIX)) localStorage.removeItem(key)
     }
   } catch {
     // Nothing to clear if storage is unavailable.

@@ -55,7 +55,9 @@ export default function TodayTasks({ tasks }: TodayTasksProps) {
           </span>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* At most three tasks reach here, so three columns is the natural shape: one card takes a third of the
+              row instead of stretching across it, and two or three fill it. */}
           {tasks.map((task) => {
             const colour = CARD_COLOUR[task.category]
             const percent =
@@ -64,7 +66,7 @@ export default function TodayTasks({ tasks }: TodayTasksProps) {
               <Link
                 key={task.id}
                 to="/tasks"
-                className={`box-border flex min-h-[200px] flex-col gap-3 rounded-[26px] p-4 text-ink no-underline transition duration-200 hover:-translate-y-[3px] hover:text-ink ${colour.card}`}
+                className={`box-border flex min-h-[150px] flex-col gap-3 rounded-[26px] p-4 text-ink no-underline transition duration-200 hover:-translate-y-[3px] hover:text-ink ${colour.card}`}
               >
                 <span className="self-start rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#2E384D]">
                   {PRIORITY_LABEL[task.priority]}

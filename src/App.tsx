@@ -1,4 +1,4 @@
-import { HashRouter, Outlet, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import AppShell from './components/AppShell'
 import AuthProvider from './components/AuthProvider'
 import BottomNav from './components/BottomNav'
@@ -7,6 +7,7 @@ import TopNav from './components/TopNav'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Performance from './pages/Performance'
+import Register from './pages/Register'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Tasks from './pages/Tasks'
@@ -27,6 +28,7 @@ export default function App() {
         <Routes>
           {/* The sign-in screen has no top nav and is the only page open to signed-out visitors. */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route element={<RequireAuth />}>
             <Route element={<ShellLayout />}>
               <Route path="/" element={<Dashboard />} />
@@ -37,6 +39,8 @@ export default function App() {
               <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>
+          {/* The confirmation email link brings "#access_token=..." back to the app. It matches no page, so go to sign in (this also clears it from the address). */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthProvider>
     </HashRouter>

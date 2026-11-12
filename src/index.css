@@ -40,11 +40,19 @@
   --color-bank-cell: #e7ecf5;
 }
 
+:root {
+  /* Full window height, corrected for the zoom below. */
+  --app-min-h: 100vh;
+}
+
 /* Phone scale: the sizes in the components are desktop pixels, so under 768px everything is shrunk together
    (blocks, icons, fonts, shapes). Change this one number to make the phone view bigger or smaller. */
 @media (max-width: 767.98px) {
   html {
     zoom: 0.82;
+  }
+  :root {
+    --app-min-h: calc(100vh / 0.82);
   }
 }
 /* Desktop scale: gentler than the phone one, so the pages read as medium sized instead of zoomed in. */
@@ -52,11 +60,17 @@
   html {
     zoom: 0.9;
   }
+  :root {
+    --app-min-h: calc(100vh / 0.9);
+  }
 }
 
 body {
   margin: 0;
-  background: #dce5f4;
+  /* The same gradient as the shell, pinned to the window, so no strip of a different colour can ever show. */
+  background-color: #DDEEEA;
+  background-image: linear-gradient(150deg, #D3E3F8 0%, #E2E1F6 52%, #DDEEEA 100%);
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
@@ -212,8 +226,10 @@ body {
     color 0.15s ease;
 }
 .segb:hover {
+  background: #e7eefb;
   color: var(--color-navy);
 }
+/* .segb.on follows this rule, so the chosen pill keeps its navy background on hover. */
 .segb.on {
   background: var(--color-navy);
   color: #ffffff;

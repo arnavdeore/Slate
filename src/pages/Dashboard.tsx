@@ -10,6 +10,8 @@ import WeekStrip from '../components/WeekStrip'
 import type { StatTileData } from '../data/dashboard'
 import { calendarDeadlines, deadlineRows, latestUpdates, statTiles, todayFocus, weekCounts } from '../lib/dashboardStats'
 import { greeting, longDate, todayIso, weekDates } from '../lib/dates'
+import { firstName } from '../lib/profileApi'
+import { useProfile } from '../lib/profileContext'
 import { useTasksData } from '../lib/tasksDataContext'
 
 // Shown in place of the real tiles until the data has loaded.
@@ -32,6 +34,7 @@ const LOADING_TILES: StatTileData[] = [
 export default function Dashboard() {
   const [now] = useState(() => new Date())
   const { tasks, eodLog, load, loadError, refreshError, reload } = useTasksData()
+  const { name } = useProfile()
   // Today on this device (local time), so an evening in India still counts as today.
   const today = todayIso(now)
   const ready = load === 'ready'
@@ -50,7 +53,9 @@ export default function Dashboard() {
       <div className="contents md:flex md:flex-wrap md:items-end md:justify-between md:gap-x-6 md:gap-y-[18px] md:px-1.5">
         <div className="order-1 min-w-0 px-1.5 md:order-none md:flex-[1_1_320px] md:px-0">
           <h1 className="m-0 text-[22px] font-extrabold tracking-[-0.015em] md:text-[30px]">
-            {greeting(now)}, Arnav
+            {greeting(now)}
+            {/* The greeting is first-name only; the top bar shows the full name. */}
+            {name ? `, ${firstName(name)}` : ''}
           </h1>
           <p className="mb-0 mt-1.5 text-[13px] leading-[1.55] text-muted md:mt-[7px] md:text-sm">
             <span className="hidden md:inline">Here is where your work stands today. </span>
@@ -68,7 +73,8 @@ export default function Dashboard() {
         <ThoughtStrip />
       </div>
 
-      {/* Row 2: Today's tasks (or the loading / error message while the data is not ready). */}
+      {/* Row 2: what to act on right now. Today's focus cards and the deadline list belong together, and pairing
+          them stops Today's tasks stretching a single card across the whole frame. */}
       <div className="contents md:flex md:flex-wrap md:items-stretch md:gap-5">
         <div className="order-5 md:contents md:order-none">
           {ready ? (
@@ -92,31 +98,31 @@ export default function Dashboard() {
             </section>
           )}
         </div>
-      </div>
-
-      {/* Row 3: Deadline watch (it has its own category pills) and the month calendar. Category breakdowns live on Performance. */}
-      <div className="contents md:flex md:flex-wrap md:items-stretch md:gap-5">
         {ready && (
           <div className="order-4 md:contents md:order-none">
             <DeadlineWatch rows={deadlineRows(tasks, today)} />
           </div>
         )}
+      </div>
+
+      {/* Row 3 (last row, so on desktop it grows to fill the frame): the calendar is a tall block, so the two short
+          cards stack in a column beside it instead of each taking a full-width strip of its own. That column is a
+          grid, not a flex column, because a flex column would read each card's flex-basis as a HEIGHT. */}
+      <div className="contents md:flex md:flex-[1_1_auto] md:flex-wrap md:items-stretch md:gap-5">
         <div className="order-9 md:contents md:order-none">
           <MonthCalendar deadlines={ready ? calendarDeadlines(tasks) : []} />
         </div>
+        {ready && (
+          <div className="contents md:grid md:min-w-0 md:flex-[1.2_1_420px] md:grid-cols-1 md:content-start md:gap-5">
+            <div className="order-6 md:contents md:order-none">
+              <WeekStrip today={now} planned={week.planned} done={week.done} />
+            </div>
+            <div className="order-10 md:contents md:order-none">
+              <LatestUpdates updates={latestUpdates(eodLog, today)} total={eodLog.length} />
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Row 4 (last row, so on desktop it grows to fill the frame): This week, then Latest updates beside it. */}
-      {ready && (
-        <div className="contents md:flex md:flex-[1_1_auto] md:flex-wrap md:items-stretch md:gap-5">
-          <div className="order-6 md:contents md:order-none">
-            <WeekStrip today={now} planned={week.planned} done={week.done} />
-          </div>
-          <div className="order-10 md:contents md:order-none">
-            <LatestUpdates updates={latestUpdates(eodLog, today)} total={eodLog.length} />
-          </div>
-        </div>
-      )}
     </>
   )
 }

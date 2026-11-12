@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../lib/authContext'
+import { useProfile } from '../lib/profileContext'
 import SlateMark from './SlateMark'
 
 const TABS = [
@@ -26,6 +27,8 @@ const iconProps = {
 /** The top bar shared by every desktop page. Pass it to AppShell's `header` slot. */
 export default function TopNav() {
   const { session, signOut } = useAuth()
+  // The signed-in person's own name and job title (from their Settings), not a fixed name.
+  const { name, title } = useProfile()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -94,11 +97,11 @@ export default function TopNav() {
             className="flex cursor-pointer items-center gap-2.5 rounded-full border-0 bg-transparent p-0 text-left font-sans text-ink"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(160deg,#F3F0FD,#D9D2F7)] font-extrabold text-lavender-dark shadow-[inset_0_1px_0_#FFFFFF,0_8px_12px_-6px_rgba(76,58,166,0.45)]">
-              A
+              {name.charAt(0).toUpperCase()}
             </span>
             <span className="hidden flex-col leading-tight sm:flex">
-              <span className="text-[13px] font-bold">Arnav</span>
-              <span className="text-[11px] text-muted">Data analyst</span>
+              <span className="text-[13px] font-bold">{name}</span>
+              {title && <span className="text-[11px] text-muted">{title}</span>}
             </span>
           </button>
           {menuOpen && (
@@ -110,6 +113,14 @@ export default function TopNav() {
                 <div className="text-xs text-muted">Signed in as</div>
                 <div className="overflow-hidden text-ellipsis text-[13px] font-bold">{session?.user.email}</div>
               </div>
+              <NavLink
+                to="/settings"
+                role="menuitem"
+                onClick={() => setMenuOpen(false)}
+                className="flex h-11 w-full items-center rounded-[16px] px-3 text-[13px] font-bold text-navy no-underline hover:bg-[#F1F4FB] hover:text-navy"
+              >
+                Settings
+              </NavLink>
               <button
                 type="button"
                 role="menuitem"

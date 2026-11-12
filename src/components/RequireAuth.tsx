@@ -1,10 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../lib/authContext'
+import ProfileProvider from './ProfileProvider'
 import TasksDataProvider from './TasksDataProvider'
 
 /**
  * Wraps every page that needs a signed-in user. Signed-out visitors are sent to the Login page. Signed-in pages share one
- * TasksDataProvider, so tasks are loaded once and not again for every page.
+ * TasksDataProvider (tasks are loaded once, not again for every page) and one ProfileProvider (the person's name and job title).
  */
 export default function RequireAuth() {
   const { session, loading } = useAuth()
@@ -23,8 +24,10 @@ export default function RequireAuth() {
 
   if (!session) return <Navigate to="/login" replace />
   return (
-    <TasksDataProvider userId={session.user.id}>
-      <Outlet />
-    </TasksDataProvider>
+    <ProfileProvider userId={session.user.id} email={session.user.email ?? ''}>
+      <TasksDataProvider userId={session.user.id}>
+        <Outlet />
+      </TasksDataProvider>
+    </ProfileProvider>
   )
 }

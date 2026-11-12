@@ -58,7 +58,8 @@ export default function DeadlineWatch({ rows: allRows }: DeadlineWatchProps) {
             <button
               key={item.key}
               type="button"
-              className={`segb${filter === item.key ? ' on' : ''}`}
+              // "All" means no filter, so it is never highlighted.
+              className={`segb${filter === item.key && item.key !== 'all' ? ' on' : ''}`}
               aria-pressed={filter === item.key}
               onClick={() => setFilter(item.key)}
             >
@@ -73,7 +74,8 @@ export default function DeadlineWatch({ rows: allRows }: DeadlineWatchProps) {
         <div className="seg" role="group" aria-label="Filter by category">
           <button
             type="button"
-            className={`segb${category === null ? ' on' : ''}`}
+            // No category chosen is the resting state, so this one stays plain too.
+            className="segb"
             aria-pressed={category === null}
             onClick={() => setCategory(null)}
           >

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { categoryNames } from '../data/dashboard'
 import type { CategoryKey } from '../data/dashboard'
-import { statusNames } from '../data/tasks'
-import type { NewTask, Priority, Task, TaskStatus } from '../data/tasks'
+import { repeatOrder, statusNames, weekdayPicks } from '../data/tasks'
+import type { NewTask, Priority, RepeatRule, Task, TaskStatus } from '../data/tasks'
+import { formatIso, weekdayOfIso } from '../lib/dates'
+import { nextDueAfter, repeatLabel } from '../lib/repeat'
 import Modal from './Modal'
 import { SHEET_FOOTER } from './sheetFooter'
 
@@ -25,6 +27,8 @@ type Form = {
   estimate: string
   status: TaskStatus
   notes: string
+  repeat: RepeatRule | ''
+  repeatDays: number[]
 }
 
 const BLANK: Form = {
@@ -36,6 +40,8 @@ const BLANK: Form = {
   estimate: '',
   status: 'todo',
   notes: '',
+  repeat: '',
+  repeatDays: [],
 }
 
 /** The rules from docs/design-notes.md ("Validation"). Returns the messages to show, empty when the form is fine. */
@@ -48,6 +54,7 @@ function check(form: Form): string[] {
   }
   const estimate = form.estimate === '' ? 0 : Number(form.estimate)
   if (Number.isNaN(estimate) || estimate < 0) errors.push('Estimated hours must be zero or more.')
+  if (form.repeat === 'custom' && form.repeatDays.length === 0) errors.push('Tick at least one day to repeat on.')
   return errors
 }
 
@@ -62,6 +69,8 @@ function formFrom(task: Task): Form {
     estimate: task.estimateHours ? String(task.estimateHours) : '',
     status: task.status,
     notes: task.notes,
+    repeat: task.repeat,
+    repeatDays: task.repeatDays,
   }
 }
 
@@ -89,6 +98,11 @@ export default function AddTaskModal({ onClose, onAdd, editing, onDelete, update
     setForm((current) => ({ ...current, [key]: value }))
   }
 
+  // Shows the date the FOLLOWING copy would land on, so the choice is concrete before anything is saved.
+  const nextIso =
+    form.repeat && form.fixed ? nextDueAfter(form.fixed, form.repeat, form.repeatDays, form.fixed) : ''
+  const preview = nextIso ? `${weekdayOfIso(nextIso)}, ${formatIso(nextIso)}` : ''
+
   async function submit() {
     if (busy) return
     const problems = check(form)
@@ -104,6 +118,8 @@ export default function AddTaskModal({ onClose, onAdd, editing, onDelete, update
       status: form.status,
       estimateHours: form.estimate === '' ? 0 : Number(form.estimate),
       notes: form.notes.trim(),
+      repeat: form.repeat,
+      repeatDays: form.repeat === 'custom' ? form.repeatDays : [],
     })
     setBusy(false)
     // On success the page closes this pop-up; on failure it stays open with the form as typed.
@@ -215,6 +231,59 @@ export default function AddTaskModal({ onClose, onAdd, editing, onDelete, update
           <p className="m-0 text-[13px] leading-[1.6] text-muted">
             Tentative is your own target and can move. Fixed is the committed date and drives your on-time score.
           </p>
+        </div>
+
+        <div className="grp">
+          <span className="grph">Repeat</span>
+          <label className="lbl">
+            How often
+            <select
+              className="fld"
+              value={form.repeat}
+              onChange={(event) => set('repeat', event.target.value as RepeatRule | '')}
+            >
+              <option value="">Does not repeat</option>
+              {repeatOrder.map((key) => (
+                <option key={key} value={key}>
+                  {repeatLabel(key, form.fixed)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {form.repeat === 'custom' && (
+            <div className="lbl">
+              Repeat on
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Days to repeat on">
+                {weekdayPicks.map((pick) => {
+                  const on = form.repeatDays.includes(pick.day)
+                  return (
+                    <button
+                      key={pick.day}
+                      type="button"
+                      aria-pressed={on}
+                      className={`pillbtn h-10 min-w-[54px] px-3 text-[13px] ${on ? 'bg-navy text-white' : 'bg-[#F1F4FB] text-navy'}`}
+                      onClick={() =>
+                        set(
+                          'repeatDays',
+                          on ? form.repeatDays.filter((day) => day !== pick.day) : [...form.repeatDays, pick.day],
+                        )
+                      }
+                    >
+                      {pick.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {form.repeat && (
+            <p className="m-0 text-[13px] leading-[1.6] text-muted">
+              Only one copy is open at a time. When you mark this done, Slate adds the next one.
+              {form.repeat === 'workday' && ' Working days skip Sundays, public holidays and bank 2nd and 4th Saturdays.'}
+              {preview && <strong className="font-bold text-ink"> The one after this is due {preview}.</strong>}
+              {!form.fixed && ' Pick a fixed deadline to see when the next one falls.'}
+            </p>
+          )}
         </div>
 
         <div className="grp">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import SlateMark from '../components/SlateMark'
 import { useAuth } from '../lib/authContext'
 
@@ -46,7 +46,7 @@ export default function Login() {
   }
 
   return (
-    <div className="box-border flex min-h-screen items-center justify-center bg-[linear-gradient(150deg,#D3E3F8_0%,#E2E1F6_52%,#DDEEEA_100%)] p-6 font-sans text-ink">
+    <div className="box-border flex min-h-[var(--app-min-h)] items-center justify-center bg-[linear-gradient(150deg,#D3E3F8_0%,#E2E1F6_52%,#DDEEEA_100%)] p-6 font-sans text-ink">
       <form
         onSubmit={submit}
         noValidate
@@ -122,6 +122,13 @@ export default function Login() {
             </p>
           )}
         </div>
+
+        <p className="m-0 text-center text-[13px] text-muted">
+          New here?{' '}
+          <Link to="/register" className="font-semibold text-navy">
+            Create an account
+          </Link>
+        </p>
       </form>
     </div>
   )
