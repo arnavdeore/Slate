@@ -4,6 +4,6 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/Task-Performance-Tracking/',
+  base: '/Slate/',
   plugins: [react(), tailwindcss()],
 })

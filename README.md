@@ -2,7 +2,7 @@
 
 A personal job tracking and performance portal. Each task has a tentative deadline (own target, can move) and a fixed deadline (committed), and the app shows how performance holds up against both.
 
-Live site: https://arnavdeore.github.io/Task-Performance-Tracking/
+Live site: https://arnavdeore.github.io/Slate/
 
 ## Built with
 - React 19, TypeScript and Vite
@@ -15,7 +15,7 @@ Live site: https://arnavdeore.github.io/Task-Performance-Tracking/
 npm install
 npm run dev
 ```
-Then open http://localhost:5173/Task-Performance-Tracking/ (the base path is required).
+Then open http://localhost:5173/Slate/ (the base path is required).
 
 ## Useful commands
 | Command | What it does |
